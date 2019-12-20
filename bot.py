@@ -19,24 +19,36 @@ class Bot:
         self.vk = self.vk_session.get_api()
         self.pending_folder = './data/pending/'
         self.done_folder = './data/done/'
-        
-        self.pending = os.listdir(self.pending_folder)
-        self.done = os.listdir(self.done_folder)
+        self.targeted_folder = './data/targeted/'
+
+    def pending(self):
+        return os.listdir(self.pending_folder)
+
+    def done(self):
+        return os.listdir(self.done_folder)
+
+    def targeted(self):
+        return os.listdir(self.targeted_folder)
 
     def handle(self, data):
         event = VkBotMessageEvent(data)
         msg = event.object
         if msg.text:
             id = str(msg.from_id)
-            if id in self.pending:
-                to = random.choice([x for x in self.pending if x!=id])
+            if id in self.pending():
+                try:
+                    to = random.choice([x for x in self.pending()+self.done() if x!=id and x not in self.targeted()])
+                except IndexError:
+                    self.send('Люди закончились', msg.from_id)
+                    return
                 with open(self.done_folder + id, 'w') as f:
                     f.write(to)
-                self.done.append(id)
-                self.pending = [x for x in self.pending if x!=id]
+                with open(self.targeted_folder + to, 'w') as f:
+                    f.write('')
+                os.remove(self.pending_folder + id)
                 self.send(f'vk.com/id{to}', msg.from_id)
                 logger.info(f'NEW: {id} to {to}')
-            elif id in self.done:
+            elif id in self.done():
                 with open(self.done_folder + id, 'r') as f:
                     to = f.read()
                 self.send(f'vk.com/id{to}', msg.from_id)
